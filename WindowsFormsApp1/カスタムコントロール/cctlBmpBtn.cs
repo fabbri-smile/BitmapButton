@@ -46,7 +46,10 @@ namespace WindowsFormsApp1
 
         private bool prv_bToggled = false;                      // ボタンの押下フラグ (ボタンが押下されている間にtrue)
         private bool prv_bDrawToggledBtn = false;               // ボタンの描画フラグ (押下されているボタンを描画する時にtrue)
-        private Point prv_ptToggleOffsetRB = new Point(0, 0);   // ボタン押下時にビットマップを右下にずらす量
+        private Point prv_ptToggleOffsetRB = new Point(2, 2);   // ボタン押下時にビットマップを右下にずらす量
+
+        // テキスト描画時の文字揃えの設定
+        private ContentAlignment prv_TextAlign = ContentAlignment.MiddleCenter;
 
         //***************************************************************************
         /// <summary>
@@ -136,6 +139,21 @@ namespace WindowsFormsApp1
                 // 描画用のビットマップをクリア (OnPaintで再生成される)
                 prv_bmpBtnFaceArray[IDX_DRAW] = null;   // 通常時
                 prv_bmpTglFaceArray[IDX_DRAW] = null;   // ボタン押下時
+
+                // コントロールを再描画
+                this.Invalidate();
+            }
+        }
+        //***************************************************************************
+        /// <summary>
+        /// プロパティ定義 :  テキスト描画時の文字揃えの設定
+        /// </summary>
+        public ContentAlignment TextAlign
+        {
+            get { return prv_TextAlign; }
+            set
+            {
+                prv_TextAlign = value;
 
                 // コントロールを再描画
                 this.Invalidate();
@@ -241,6 +259,76 @@ namespace WindowsFormsApp1
         }
         //***************************************************************************
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="txtAlignment"></param>
+        /// <returns></returns>
+        private StringFormat GetStringFormat(ContentAlignment txtAlignment)
+        {
+            StringFormat fmt = new StringFormat
+            {
+                Alignment = StringAlignment.Center,     // 中揃え (水平方向)
+                LineAlignment = StringAlignment.Center, // 中揃え (垂直方向)
+            };
+
+            try
+            {
+                // 水平方向
+                switch (txtAlignment)
+                {
+                    case ContentAlignment.TopLeft:
+                    case ContentAlignment.MiddleLeft:
+                    case ContentAlignment.BottomLeft:
+                        fmt.Alignment = StringAlignment.Near;       // 左揃え (水平方向)
+                        break;
+                    case ContentAlignment.TopCenter:
+                    case ContentAlignment.MiddleCenter:
+                    case ContentAlignment.BottomCenter:
+                        fmt.Alignment = StringAlignment.Center;     // 中揃え (水平方向)
+                        break;
+                    case ContentAlignment.TopRight:
+                    case ContentAlignment.MiddleRight:
+                    case ContentAlignment.BottomRight:
+                        fmt.Alignment = StringAlignment.Far;        // 右揃え (水平方向)
+                        break;
+                    default:
+                        // 何もしない
+                        break;
+                }
+
+                // 垂直方向
+                switch (txtAlignment)
+                {
+                    case ContentAlignment.TopLeft:
+                    case ContentAlignment.TopCenter:
+                    case ContentAlignment.TopRight:
+                        fmt.LineAlignment = StringAlignment.Near;   // 上揃え (垂直方向)
+                        break;
+                    case ContentAlignment.MiddleLeft:
+                    case ContentAlignment.MiddleCenter:
+                    case ContentAlignment.MiddleRight:
+                        fmt.LineAlignment = StringAlignment.Center; // 中揃え (垂直方向)
+                        break;
+                    case ContentAlignment.BottomLeft:
+                    case ContentAlignment.BottomCenter:
+                    case ContentAlignment.BottomRight:
+                        fmt.LineAlignment = StringAlignment.Far;    // 下揃え (垂直方向)
+                        break;
+                    default:
+                        // 何もしない
+                        break;
+                }
+
+                return fmt;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.ToString());
+                return fmt;
+            }
+        }
+        //***************************************************************************
+        /// <summary>
         /// 描画イベント
         /// </summary>
         /// <param name="pe"></param>
@@ -285,23 +373,31 @@ namespace WindowsFormsApp1
                     // ビットマップを貼れないので、とりあえず外枠を描画
                     Rectangle rectDraw = this.ClientRectangle;
 
-                    rectDraw.Width -= 1;    // 領域からはみ出すの減じる
+                    rectDraw.Width -= 1;    // 領域からはみ出すので減らす
                     rectDraw.Height -= 1;   //          〃
 
                     g.DrawRectangle(Pens.Black, rectDraw);
+                }
 
-                    // 適当なフォントで枠の中央にコントロール名を描画
-                    StringFormat fmtDrawStr = new StringFormat
-                    {
-                        Alignment = StringAlignment.Center,     // 中揃え (水平方向)
-                        LineAlignment = StringAlignment.Center, // 中揃え (垂直方向)
-                    };
+                // 指定位置に Text を描画
+                StringFormat fmt = GetStringFormat(prv_TextAlign);
+                RectangleF rectText = this.ClientRectangle;
+                GraphicsUnit gunit = GraphicsUnit.Pixel;
 
-                    using (Font fontDraw = new Font("Arial", 12, FontStyle.Bold, GraphicsUnit.Point))
+                if (true != prv_bDrawToggledBtn)    // 通常のボタンを描画
+                {
+                    if (null != prv_bmpBtnFaceArray[IDX_DRAW]) rectText = prv_bmpBtnFaceArray[IDX_DRAW].GetBounds(ref gunit);
+                }
+                else    // 押下されているボタンを描画
+                {
+                    if (null != prv_bmpTglFaceArray[IDX_DRAW])
                     {
-                        g.DrawString(this.Name, fontDraw, Brushes.Black, rectDraw, fmtDrawStr);
+                        rectText = prv_bmpTglFaceArray[IDX_DRAW].GetBounds(ref gunit);
+                        rectText.Offset(prv_ptToggleOffsetRB);  // 押下ボタンの描画時は、文字列を右下にずらす
                     }
                 }
+
+                g.DrawString(this.Text, this.Font, Brushes.Black, rectText, fmt);
             }
             catch (Exception ex)
             {
